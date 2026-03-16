@@ -5,7 +5,7 @@ let isRunning = false;
 let totalVolume = 0;
 let targetVolume = 0;
 
-// Слушаем сообщения от popup
+// Слухач повідомлень з popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'start') {
     targetVolume = request.volume;
@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-// Ждем загрузки страницы
+// Мяса загрузка страницы
 function waitForLoad() {
   return new Promise(resolve => {
     if (document.readyState === 'complete') {
@@ -43,7 +43,7 @@ function waitForElement(selector, timeout = 5000) {
       resolve(el);
       return;
     }
-    
+
     const observer = new MutationObserver(() => {
       const el = document.querySelector(selector);
       if (el) {
@@ -51,12 +51,12 @@ function waitForElement(selector, timeout = 5000) {
         resolve(el);
       }
     });
-    
+
     observer.observe(document.body, {
       childList: true,
       subtree: true
     });
-    
+
     setTimeout(() => {
       observer.disconnect();
       reject(new Error(`Element ${selector} not found`));
@@ -67,7 +67,7 @@ function waitForElement(selector, timeout = 5000) {
 // Переключение на вкладку Buy
 async function switchToBuyTab() {
   console.log('[Gate Trader] Switching to Buy tab');
-  const buyTab = await waitForElement('[id^="tab-buy"]');
+  const buyTab = await waitForElement('[id="tab-buy"]');
   if (buyTab && !buyTab.classList.contains('selected')) {
     buyTab.click();
     await new Promise(r => setTimeout(r, 500));
@@ -77,7 +77,7 @@ async function switchToBuyTab() {
 // Переключение на вкладку Sell
 async function switchToSellTab() {
   console.log('[Gate Trader] Switching to Sell tab');
-  const sellTab = await waitForElement('[id^="tab-sell"]');
+  const sellTab = await waitForElement('[id="tab-sell"]');
   if (sellTab && !sellTab.classList.contains('selected')) {
     sellTab.click();
     await new Promise(r => setTimeout(r, 500));
@@ -87,206 +87,133 @@ async function switchToSellTab() {
 // Переключение на Market
 async function switchToMarket() {
   console.log('[Gate Trader] Switching to Market mode');
-  const marketTab = await waitForElement('[id^="tab-marketPrice"]');
-  if (marketTab && !marketTab.getAttribute('aria-selected')) {
+  const marketTab = await waitForElement('[id="tab-marketPrice"]');
+  if (marketTab && !marketTab.classList.contains('selected')) {
     marketTab.click();
     await new Promise(r => setTimeout(r, 500));
   }
 }
 
-// Получить текущий баланс USDT
+// Получить текущий Баланс USDT
 function getUSDTBalance() {
-  // Ищем текст "USDT Balance" и берем значение рядом
-  const balanceTexts = Array.from(document.querySelectorAll('*')).filter(el => 
-    el.textContent.includes('USDT Balance')
+  // Ищем все div с текстом "USDT" и берем значение рядом
+  const elements = Array.from(document.querySelectorAll('div')).filter(el =>
+    el.textContent.includes('USDT Balance') || el.textContent.includes('Max Buy')
   );
-  
-  if (balanceTexts.length > 0) {
-    const parent = balanceTexts[0].closest('div');
-    const valueEl = parent?.querySelector('*:last-child');
+
+  if (elements.length > 0) {
+    const parent = elements[0].closest('div');
+    const valueEl = parent.querySelector('div:last-child');
     if (valueEl) {
-      const match = valueEl.textContent.match(/([\d.]+)/);
-      if (match) {
-        return parseFloat(match[1]);
+      const text = valueEl.textContent.match(/([\d.]+)/);
+      if (text) {
+        return parseFloat(text[1]);
       }
     }
   }
   return 0;
 }
 
-// Получить текущий баланс GF
+// Получить текущий Баланс GF
 function getGFBalance() {
-  const balanceTexts = Array.from(document.querySelectorAll('*')).filter(el => 
-    el.textContent.includes('GF Balance')
+  const elements = Array.from(document.querySelectorAll('div')).filter(el =>
+    el.textContent.includes('GF Balance') || el.textContent.includes('Max Sell')
   );
-  
-  if (balanceTexts.length > 0) {
-    const parent = balanceTexts[0].closest('div');
-    const valueEl = parent?.querySelector('*:last-child');
+
+  if (elements.length > 0) {
+    const parent = elements[0].closest('div');
+    const valueEl = parent.querySelector('div:last-child');
     if (valueEl) {
-      const match = valueEl.textContent.match(/([\d.]+)/);
-      if (match) {
-        return parseFloat(match[1]);
+      const text = valueEl.textContent.match(/([\d.]+)/);
+      if (text) {
+        return parseFloat(text[1]);
       }
     }
   }
   return 0;
 }
 
-// Получить текущую цену GF
-function getCurrentPrice() {
-  // Ищем элемент с ценой в хедере
-  const priceEl = document.querySelector('[class*="coin"] [class*="price"]');
-  if (priceEl) {
-    const match = priceEl.textContent.match(/([\d.]+)/);
-    if (match) {
-      return parseFloat(match[1]);
-    }
-  }
-  return 0;
-}
-
-// Выполнить покупку
-async function executeBuy() {
-  console.log('[Gate Trader] Executing BUY');
+// Купити на всю сумму USDT
+async function buyAll() {
+  console.log('[Gate Trader] Executing BUY order');
   
-  try {
-    await switchToBuyTab();
-    await switchToMarket();
-    await new Promise(r => setTimeout(r, 1000));
-    
-    // Найти поле Amount и кнопку Buy
-    const amountInput = await waitForElement('input[id*="mantine"][aria-label="Amount"], input[placeholder*="Amount"]');
-    const buyButton = await waitForElement('button:has-text("Buy GF"), button[class*="buy"]');
-    
-    if (!amountInput || !buyButton) {
-      console.error('[Gate Trader] Buy elements not found');
-      return false;
+  await switchToBuyTab();
+  await switchToMarket();
+  
+  // Знаходимо input поле для Amount (GF)
+  const amountInput = await waitForElement('input[id*="mantine"][id*="drb"]');
+  
+  // Знаходимо кнопку Buy GF
+  const buyButton = await waitForElement('button:has-text("Buy GF")');
+  
+  if (!buyButton) {
+    // Альтернативний пошук кнопки
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const btn = buttons.find(b => b.textContent.includes('Buy GF') || b.textContent.includes('Buy'));
+    if (btn) {
+      console.log('[Gate Trader] Clicking Buy button');
+      btn.click();
+      await new Promise(r => setTimeout(r, 1000));
     }
-    
-    // Получить максимальное количество для покупки
-    const usdtBalance = getUSDTBalance();
-    const currentPrice = getCurrentPrice();
-    const maxBuyAmount = usdtBalance / currentPrice;
-    
-    console.log('[Gate Trader] USDT Balance:', usdtBalance);
-    console.log('[Gate Trader] Current Price:', currentPrice);
-    console.log('[Gate Trader] Max Buy Amount:', maxBuyAmount);
-    
-    // Вводим количество
-    amountInput.focus();
-    amountInput.value = maxBuyAmount.toString();
-    amountInput.dispatchEvent(new Event('input', { bubbles: true }));
-    amountInput.dispatchEvent(new Event('change', { bubbles: true }));
-    
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Кликаем Buy
+  } else {
     buyButton.click();
-    console.log('[Gate Trader] Buy order placed');
-    
-    // Обновляем общий объем
-    totalVolume += usdtBalance;
-    
-    return true;
-  } catch (error) {
-    console.error('[Gate Trader] Buy error:', error);
-    return false;
+    await new Promise(r => setTimeout(r, 1000));
   }
 }
 
-// Выполнить продажу
-async function executeSell() {
-  console.log('[Gate Trader] Executing SELL');
+// Продати все GF
+async function sellAll() {
+  console.log('[Gate Trader] Executing SELL order');
   
-  try {
-    await switchToSellTab();
-    await switchToMarket();
-    await new Promise(r => setTimeout(r, 1000));
-    
-    // Найти поле Amount и кнопку Sell
-    const amountInput = await waitForElement('input[id*="mantine"][aria-label="Amount"], input[placeholder*="Amount"]');
-    const sellButton = await waitForElement('button:has-text("Sell GF"), button[class*="sell"]');
-    
-    if (!amountInput || !sellButton) {
-      console.error('[Gate Trader] Sell elements not found');
-      return false;
-    }
-    
-    // Получить баланс GF
-    const gfBalance = getGFBalance();
-    
-    console.log('[Gate Trader] GF Balance:', gfBalance);
-    
-    // Вводим количество
-    amountInput.focus();
-    amountInput.value = gfBalance.toString();
-    amountInput.dispatchEvent(new Event('input', { bubbles: true }));
-    amountInput.dispatchEvent(new Event('change', { bubbles: true }));
-    
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Кликаем Sell
+  await switchToSellTab();
+  await switchToMarket();
+  
+  // Знаходимо кнопку Sell GF
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const sellButton = buttons.find(b => b.textContent.includes('Sell GF') || b.textContent.includes('Sell'));
+  
+  if (sellButton) {
+    console.log('[Gate Trader] Clicking Sell button');
     sellButton.click();
-    console.log('[Gate Trader] Sell order placed');
-    
-    return true;
-  } catch (error) {
-    console.error('[Gate Trader] Sell error:', error);
-    return false;
-  }
-}
-
-// Основной цикл торговли
-async function tradingCycle() {
-  if (!isRunning) return;
-  
-  try {
-    console.log('[Gate Trader] Starting cycle. Total volume:', totalVolume, '/', targetVolume);
-    
-    // Покупка
-    const buySuccess = await executeBuy();
-    if (!buySuccess) {
-      console.error('[Gate Trader] Buy failed');
-      return;
-    }
-    
-    // Ждем 1 секунду
     await new Promise(r => setTimeout(r, 1000));
-    
-    // Продажа
-    const sellSuccess = await executeSell();
-    if (!sellSuccess) {
-      console.error('[Gate Trader] Sell failed');
-      return;
-    }
-    
-    // Проверяем достигнут ли целевой объем
-    if (totalVolume >= targetVolume) {
-      console.log('[Gate Trader] Target volume reached!');
-      isRunning = false;
-      chrome.runtime.sendMessage({action: 'tradingComplete', totalVolume});
-      return;
-    }
-    
-    // Ждем перед следующим циклом
-    await new Promise(r => setTimeout(r, 2000));
-    
-    // Запускаем следующий цикл
-    if (isRunning) {
-      tradingCycle();
-    }
-  } catch (error) {
-    console.error('[Gate Trader] Cycle error:', error);
-    isRunning = false;
   }
 }
 
-// Запуск торговли
+// Основна функція трейдінгу
 async function startTrading() {
   await waitForLoad();
-  console.log('[Gate Trader] Page loaded, starting trading cycle');
-  tradingCycle();
+  
+  console.log('[Gate Trader] Trading started. Target:', targetVolume, 'USDT');
+  
+  let cycleCount = 0;
+  
+  while (isRunning && totalVolume < targetVolume) {
+    try {
+      cycleCount++;
+      console.log(`[Gate Trader] Cycle ${cycleCount}`);
+      
+      // Покупка
+      await buyAll();
+      await new Promise(r => setTimeout(r, 1000)); // 1s delay
+      
+      // Продажа
+      await sellAll();
+      await new Promise(r => setTimeout(r, 1000)); // 1s delay
+      
+      // Оновлюємо загальний об'єм (приблизно)
+      const balance = getUSDTBalance();
+      totalVolume += balance * 2; // покупка + продажа
+      
+      console.log(`[Gate Trader] Total volume: ${totalVolume.toFixed(2)} / ${targetVolume} USDT`);
+      
+    } catch (error) {
+      console.error('[Gate Trader] Error:', error);
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+  
+  console.log('[Gate Trader] Trading completed!');
+  isRunning = false;
 }
 
 console.log('[Gate Trader] Content script loaded');
