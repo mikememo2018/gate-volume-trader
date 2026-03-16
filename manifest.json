@@ -11,8 +11,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.gate.com/trade/*"],
-      "js": ["content.js"],
+      "matches": ["*://www.gate.com/trade/*", "*://www.gate.io/trade/*"],      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
