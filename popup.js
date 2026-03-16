@@ -1,22 +1,22 @@
-72
 // popup.js
 const $ = id => document.getElementById(id);
 
-let stopFlag       = false;
-let volumeDone     = 0;
-let cyclesDone     = 0;
-let targetVolume   = 0;
+// Global state
+let stopFlag    = false;
+let volumeDone   = 0;
+let cyclesDone   = 0;
+let targetVolume = 0;
 let amountPerCycle = 0;
 
 // Задержки (секунды)
-const DELAY_BS_MIN  = 0.5;  // Buy -> Sell
-const DELAY_BS_MAX  = 1.0;
-const DELAY_CYC_MIN = 1.0;  // между циклами
+const DELAY_BS_MIN = 0.5;  // Buy -> Sell
+const DELAY_BS_MAX = 1.0;
+const DELAY_CYC_MIN = 5.0;   // между циклами
 const DELAY_CYC_MAX = 2.0;
 
-function sleep(minSec, maxSec) {
-  const ms = (minSec + Math.random() * (maxSec - minSec)) * 1000;
-  return new Promise(r => setTimeout(r, ms));
+function sleep(secL, secR) {
+  const rn = (secL !== secR) ? (Math.random() * (secR - secL) + secL) : secL;
+  return new Promise(r => setTimeout(r, rn*1000));
 }
 
 function log(msg, type = '') {
@@ -36,17 +36,17 @@ function setStatus(text, cls) {
 }
 
 function updateUI() {
-  $('st-done').textContent   = '$' + volumeDone.toFixed(2);
+  $('st-done').textContent = '$' + volumeDone.toFixed(2);
   $('st-target').textContent = '$' + targetVolume.toFixed(2);
   $('st-cycles').textContent = cyclesDone;
   const pct = targetVolume > 0 ? Math.min(100, (volumeDone / targetVolume) * 100) : 0;
   $('progress-bar').style.width = pct.toFixed(1) + '%';
-  $('progress-pct').textContent  = pct.toFixed(1) + '%';
+  $('progress-pct').textContent = pct.toFixed(1) + '%';
 }
 
 function setRunning(val) {
-  $('btn-start').style.display = val ? 'none'  : 'block';
-  $('btn-stop').style.display  = val ? 'block' : 'none';
+  $('btn-start').style.display = val ? 'none' : 'block';
+  $('btn-stop').style.display = val ? 'block' : 'none';
   $('inp-target').disabled = val;
   $('inp-amount').disabled = val;
 }
@@ -63,16 +63,16 @@ async function sendCmd(tabId, action, payload) {
 
 async function getGateTab() {
   return new Promise((resolve, reject) => {
-    chrome.tabs.query({ url: '*://*.gate.com/trade/*' }, tabs => {    
-                                                                        if (!tabs || !tabs.length) reject(new Error('Открой вкладку gate.com/trade/...'));
-                                                                        else resolve(tabs[0]);
+    chrome.tabs.query({ url: '*://*.gate.*/trade/*' }, tabs => {
+      if (!tabs.length) reject(new Error('Открой вкладку gate.com/trade/...'));
+      else resolve(tabs[0]);
+    });
   });
 }
 
 async function runLoop() {
   let tab;
-  try { tab = await getGateTab()
-    (); }
+  try { tab = await getGateTab(); }
   catch (e) { log(e.message, 'err'); setRunning(false); setStatus('Ошибка', 'red'); return; }
 
   log('Старт. Цель: $' + targetVolume + ' | Цикл: $' + amountPerCycle, 'info');
@@ -80,7 +80,7 @@ async function runLoop() {
 
   while (!stopFlag && volumeDone < targetVolume) {
     const remaining = targetVolume - volumeDone;
-    const cycleAmt  = Math.min(amountPerCycle, remaining / 2);
+    const cycleAmt = Math.min(amountPerCycle, remaining / 2);
 
     if (cycleAmt < 0.5) { log('Цель достигнута (остаток < $0.5)', 'ok'); break; }
 
@@ -104,6 +104,7 @@ async function runLoop() {
 
     // Пауза Buy->Sell: 0.5–1 сек
     await sleep(DELAY_BS_MIN, DELAY_BS_MAX);
+
     if (stopFlag) break;
 
     // SELL
@@ -128,39 +129,26 @@ async function runLoop() {
     volumeDone += vol;
     cyclesDone++;
     updateUI();
+
     log('Объём: $' + volumeDone.toFixed(2) + ' / $' + targetVolume + ' (+$' + vol.toFixed(2) + ')', '');
-
-    if (stopFlag || volumeDone >= targetVolume) break;
-
-    // Пауза между циклами: 1–2 сек
-    const p = (DELAY_CYC_MIN + Math.random() * (DELAY_CYC_MAX - DELAY_CYC_MIN)).toFixed(2);
-    log('Пауза ' + p + 'с...', '');
     await sleep(DELAY_CYC_MIN, DELAY_CYC_MAX);
   }
 
-  if (volumeDone >= targetVolume) {
-    log('Цель достигнута! $' + volumeDone.toFixed(2) + ' за ' + cyclesDone + ' циклов', 'ok');
-    setStatus('Готово!', 'green');
-  } else {
-    log('Остановлено. Объём: $' + volumeDone.toFixed(2), 'warn');
-    setStatus('Остановлено', 'yellow');
-  }
+  setStatus('Завершено', 'green');
+  log('✅ Выполнено: $' + volumeDone.toFixed(2) + ' / $' + targetVolume, 'ok');
   setRunning(false);
+  stopFlag = false;
 }
 
-$('btn-start').addEventListener('click', () => {
-  targetVolume   = parseFloat($('inp-target').value) || 100;
-  amountPerCycle = parseFloat($('inp-amount').value) || 4;
-  volumeDone     = 0;
-  cyclesDone     = 0;
-  stopFlag       = false;
-  updateUI();
-  setRunning(true);
-  runLoop();
-});
+$('btn-start').onclick = () => {
+  const t = parseFloat($('inp-target').value) || 0;
+  const a = parseFloat($('inp-amount').value) || 0;
+  if (t <= 0 || a <= 0) { log('Проверь Target / Amount', 'err'); return; }
+  targetVolume = t; amountPerCycle = a;
+  volumeDone = 0; cyclesDone = 0;
+  stopFlag = false;
+  setRunning(true); updateUI();
+  runLoop().catch(err => { log('Общая ошибка: ' + err, 'err'); setRunning(false); setStatus('Ошибка','red'); });
+};
 
-$('btn-stop').addEventListener('click', () => {
-  stopFlag = true;
-  log('Запрос остановки...', 'warn');
-  setStatus('Останавливается...', 'yellow');
-});
+$('btn-stop').onclick = () => { stopFlag = true; setStatus('Останавливается...', 'yellow'); };
