@@ -27,8 +27,7 @@ function waitFor(fn, timeout) {
 function findButtonByText(text) {
   var all = document.querySelectorAll('button');
   for (var i = 0; i < all.length; i++) {
-    if (all[i].textContent.trim() === text && all[i].offsetParent !== null) return all[i];
-  }
+    if (all[i].textContent.trim().includes(text) && all[i].offsetParent !== null) return all[i];  }
   return null;
 }
 
