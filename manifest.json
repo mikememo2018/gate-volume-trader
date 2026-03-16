@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Gate Volume Trader",
+  "version": "1.0",
+  "description": "Automated spot trading on Gate.com by target volume in USD",
+  "permissions": ["scripting", "tabs", "storage"],
+  "host_permissions": ["https://www.gate.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Gate Volume Trader"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.gate.com/trade/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
