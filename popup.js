@@ -62,8 +62,7 @@ async function sendCmd(tabId, action, payload) {
 
 async function getGateTab() {
   return new Promise((resolve, reject) => {
-    chrome.tabs.query({ url: 'https://www.gate.com/trade/*' }, tabs => {
-      if (!tabs.length) reject(new Error('Открой вкладку gate.com/trade/...'));
+    chrome.tabs.query({ url: '*://www.gate.io/trade/*' }, tabs => {      if (!tabs.length) reject(new Error('Открой вкладку gate.com/trade/...'));
       else resolve(tabs[0]);
     });
   });
