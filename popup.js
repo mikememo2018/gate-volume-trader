@@ -62,7 +62,7 @@ async function sendCmd(tabId, action, payload) {
 
 async function getGateTab() {
   return new Promise((resolve, reject) => {
-    chrome.tabs.query({ url: '*://www.gate.io/trade/*' }, tabs => {      if (!tabs.length) reject(new Error('Открой вкладку gate.com/trade/...'));
+    chrome.tabs.query({ url: '*://*.gate.*/trade/*' }, tabs => {      if (!tabs.length) reject(new Error('Открой вкладку gate.com/trade/...'));
       else resolve(tabs[0]);
     });
   });
@@ -70,7 +70,8 @@ async function getGateTab() {
 
 async function runLoop() {
   let tab;
-  try { tab = await getGateTab(); }
+  try { tab = await 65
+    (); }
   catch (e) { log(e.message, 'err'); setRunning(false); setStatus('Ошибка', 'red'); return; }
 
   log('Старт. Цель: $' + targetVolume + ' | Цикл: $' + amountPerCycle, 'info');
