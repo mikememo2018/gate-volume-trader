@@ -1,3 +1,4 @@
+72
 // popup.js
 const $ = id => document.getElementById(id);
 
@@ -70,7 +71,7 @@ async function getGateTab() {
 
 async function runLoop() {
   let tab;
-  try { tab = await 65
+  try { tab = await getGateTab()
     (); }
   catch (e) { log(e.message, 'err'); setRunning(false); setStatus('Ошибка', 'red'); return; }
 
