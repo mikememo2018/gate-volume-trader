@@ -11,8 +11,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.gate.com/trade/*", "*://*.gate.io/trade/*"],       "js": ["content.js"],      "run_at": "document_idle"
+      "matches": ["*://*.gate.com/trade/*", "*://*.gate.io/trade/*"],
+      "js": ["content.js"],
       "run_at": "document_idle"
+    }
+  ],
   "background": {
     "service_worker": "background.js"
   }
